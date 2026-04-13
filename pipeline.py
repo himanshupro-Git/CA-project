@@ -164,6 +164,11 @@ with tabs[3]:
 		X = df.drop(columns=[target_col]).select_dtypes(include=[np.number])
 		y = df[target_col]
 
+# ✅ ADD THIS CHECK HERE (around line ~170)
+		if X.shape[1] == 0:
+			st.error("❌ No numeric features available for feature selection.")
+			st.stop()
+
 		method = st.radio("Selection Criterion", ["Variance Threshold", "Information Gain"])
 
 		if method == "Variance Threshold":
