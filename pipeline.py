@@ -58,7 +58,6 @@ with tabs[0]:
 				default=[c for c in df.columns if c != target_col][:5]
 			)
 
-		# ✅ FIXED PCA LOGIC
 		if features:
 			numeric_df = df[features].select_dtypes(include=[np.number]).dropna()
 
@@ -81,7 +80,6 @@ with tabs[0]:
 				)
 
 				st.plotly_chart(fig_pca, use_container_width=True)
-
 			else:
 				st.warning("⚠️ Please select at least 2 numeric features for PCA.")
 
@@ -128,26 +126,26 @@ with tabs[2]:
 		st.subheader("Outlier Detection")
 		outlier_method = st.selectbox("Method", ["IQR", "Isolation Forest"])
 
-if outlier_method == "IQR":
-	num_df = df.select_dtypes(include=[np.number])
+		if outlier_method == "IQR":
+			num_df = df.select_dtypes(include=[np.number])
 
-	if not num_df.empty:
-		Q1 = num_df.quantile(0.25)
-		Q3 = num_df.quantile(0.75)
-		IQR = Q3 - Q1
+			if not num_df.empty:
+				Q1 = num_df.quantile(0.25)
+				Q3 = num_df.quantile(0.75)
+				IQR = Q3 - Q1
 
-		outliers = ((num_df < (Q1 - 1.5 * IQR)) | (num_df > (Q3 + 1.5 * IQR))).any(axis=1)
-	else:
-		outliers = np.array([False] * len(df))
+				outliers = ((num_df < (Q1 - 1.5 * IQR)) | (num_df > (Q3 + 1.5 * IQR))).any(axis=1)
+			else:
+				outliers = np.array([False] * len(df))
 
-else:
-	num_df = df.select_dtypes(include=[np.number])
+		else:
+			num_df = df.select_dtypes(include=[np.number])
 
-	if not num_df.empty:
-		iso = IsolationForest(contamination=0.1)
-		outliers = iso.fit_predict(num_df) == -1
-	else:
-		outliers = np.array([False] * len(df))
+			if not num_df.empty:
+				iso = IsolationForest(contamination=0.1)
+				outliers = iso.fit_predict(num_df) == -1
+			else:
+				outliers = np.array([False] * len(df))
 
 		st.warning(f"Detected {sum(outliers)} outliers")
 
