@@ -37,7 +37,9 @@ tabs = st.tabs([
 	"🤖 Training & Tuning"
 ])
 
-# TAB 1
+# =========================
+# TAB 1: DATA INPUT + PCA
+# =========================
 with tabs[0]:
 	uploaded_file = st.file_uploader("Upload your CSV dataset", type="csv")
 
@@ -49,25 +51,30 @@ with tabs[0]:
 		with col1:
 			target_col = st.selectbox("Select Target Feature", df.columns)
 			st.session_state.target_col = target_col
+
 			features = st.multiselect(
 				"Select Features for PCA/Analysis",
 				[c for c in df.columns if c != target_col],
 				default=[c for c in df.columns if c != target_col][:5]
 			)
 
+		# ✅ FIXED PCA LOGIC
 		if features:
 			numeric_df = df[features].select_dtypes(include=[np.number]).dropna()
 
-			if not numeric_df.empty:
+			if numeric_df.shape[1] >= 2:
 				scaled_data = StandardScaler().fit_transform(numeric_df)
+
 				pca = PCA(n_components=2)
 				components = pca.fit_transform(scaled_data)
+
+				color_data = df.loc[numeric_df.index, target_col].astype(str)
 
 				fig_pca = px.scatter(
 					components,
 					x=0,
 					y=1,
-					color=df.loc[numeric_df.index, target_col],
+					color=color_data,
 					title="Data Shape (PCA 2D Projection)",
 					labels={'0': 'PC1', '1': 'PC2'},
 					template="plotly_dark"
@@ -75,7 +82,12 @@ with tabs[0]:
 
 				st.plotly_chart(fig_pca, use_container_width=True)
 
-# TAB 2
+			else:
+				st.warning("⚠️ Please select at least 2 numeric features for PCA.")
+
+# =========================
+# TAB 2: EDA
+# =========================
 with tabs[1]:
 	if st.session_state.df is not None:
 		st.header("Exploratory Data Analysis")
@@ -92,7 +104,9 @@ with tabs[1]:
 			fig_corr = px.imshow(corr, text_auto=True, aspect="auto")
 			st.plotly_chart(fig_corr)
 
-# TAB 3
+# =========================
+# TAB 3: ENGINEERING
+# =========================
 with tabs[2]:
 	if st.session_state.df is not None:
 		df = st.session_state.df.copy()
@@ -119,9 +133,14 @@ with tabs[2]:
 			Q3 = df.quantile(0.75, numeric_only=True)
 			IQR = Q3 - Q1
 			outliers = ((df < (Q1 - 1.5 * IQR)) | (df > (Q3 + 1.5 * IQR))).any(axis=1)
+
 		else:
-			iso = IsolationForest(contamination=0.1)
-			outliers = iso.fit_predict(df.select_dtypes(include=[np.number])) == -1
+			num_df = df.select_dtypes(include=[np.number])
+			if not num_df.empty:
+				iso = IsolationForest(contamination=0.1)
+				outliers = iso.fit_predict(num_df) == -1
+			else:
+				outliers = np.array([False] * len(df))
 
 		st.warning(f"Detected {sum(outliers)} outliers")
 
@@ -129,7 +148,9 @@ with tabs[2]:
 			st.session_state.df = df[~outliers]
 			st.rerun()
 
-# TAB 4
+# =========================
+# TAB 4: FEATURE SELECTION
+# =========================
 with tabs[3]:
 	if st.session_state.df is not None and st.session_state.target_col:
 		df = st.session_state.df.dropna()
@@ -158,7 +179,9 @@ with tabs[3]:
 		st.write("Selected Features:", list(selected_features))
 		st.session_state.final_features = selected_features
 
-# TAB 5
+# =========================
+# TAB 5: TRAINING
+# =========================
 with tabs[4]:
 	if 'final_features' in st.session_state:
 		target_col = st.session_state.target_col
@@ -185,11 +208,14 @@ with tabs[4]:
 			params = {}
 
 		if st.button("Train"):
-			cv_scores = cross_val_score(model, X_train, y_train, cv=k_fold)
-			model.fit(X_train, y_train)
+			scaler = StandardScaler()
+			X_train_scaled = scaler.fit_transform(X_train)
+			X_test_scaled = scaler.transform(X_test)
 
-			train_preds = model.predict(X_train)
-			test_preds = model.predict(X_test)
+			cv_scores = cross_val_score(model, X_train_scaled, y_train, cv=k_fold)
+			model.fit(X_train_scaled, y_train)
+
+			test_preds = model.predict(X_test_scaled)
 
 			st.write(f"CV Score: {cv_scores.mean():.4f}")
 
