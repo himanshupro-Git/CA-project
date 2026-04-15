@@ -67,13 +67,19 @@ with tabs[0]:
 
         col1, col2 = st.columns([1, 2])
         with col1:
-            target_col = st.selectbox("Select Target Feature", df.columns)
+            default_index = list(df.columns).index("AQI Value") if "AQI Value" in df.columns else 0
+
+            target_col = st.selectbox(
+                "Select Target Feature",
+                df.columns,
+                index=default_index
+            )
             st.session_state.target_col = target_col
             feature_options = [c for c in df.columns if c != target_col]
             features = st.multiselect(
                 "Select Features for PCA/Analysis",
                 feature_options,
-                default=feature_options[:5]
+                default=feature_options[:min(5, len(feature_options))]
             )
 
         with col2:
